@@ -1,8 +1,8 @@
-name: Scrape RDPU Price
+name: Scrape Gold + BTC Price
 
 on:
   schedule:
-    - cron: "0 0 * * *" # jalan sekali sehari (jam 07:00 WIB)
+    - cron: "0 0 * * *" # setiap hari jam 07:00 WIB
   workflow_dispatch: # bisa jalan manual juga
 
 jobs:
