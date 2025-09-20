@@ -8,7 +8,7 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # GOLD
-
+GOLD_ID = 1  # id row di tabel prices untuk Gold
 URL = "https://api.exchangerate.host/convert?access_key=d4fe6549a0d4c4c4a0e919dcd6698dd7&from=XAU&to=IDR&amount=1"
 
 try:
@@ -19,25 +19,24 @@ try:
     if "result" not in data or data["result"] is None:
         raise Exception(f"API Error: {data}")
 
-    xau_to_idr = data["result"]  # harga 1 XAU dalam Rupiah
+    xau_to_idr = data["result"]
     gram_per_xau = 31.1034768
     price_per_gram = xau_to_idr / gram_per_xau
 
     record = {
-        "asset_id": 4,  # id aset Gold di tabel assets
         "price": round(price_per_gram, 2),
-        "price_time": datetime.utcnow().isoformat(),  # waktu harga
+        "price_time": datetime.utcnow().isoformat(),
     }
 
-    response = supabase.table("prices").insert(record).execute()
-
-    print("✅ Data berhasil disimpan ke Supabase:", response)
+    response = supabase.table("prices").update(record).eq("id", GOLD_ID).execute()
+    print("✅ Gold price berhasil diupdate:", response)
 
 except Exception as e:
-    print("❌ Error:", e)
+    print("❌ Error Gold:", e)
 
 
 # BTC
+BTC_ID = 3  # id row di tabel prices untuk BTC
 BTC_URL = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=idr"
 
 try:
@@ -48,17 +47,15 @@ try:
     if "bitcoin" not in data or "idr" not in data["bitcoin"]:
         raise Exception(f"API Error: {data}")
 
-    btc_to_idr = data["bitcoin"]["idr"]  # harga 1 BTC dalam Rupiah
+    btc_to_idr = data["bitcoin"]["idr"]
 
     record = {
-        "asset_id": 5,  # id aset BTC di tabel assets
         "price": btc_to_idr,
-        "price_time": datetime.utcnow().isoformat(),  # waktu harga
+        "price_time": datetime.utcnow().isoformat(),
     }
 
-    response = supabase.table("prices").insert(record).execute()
-
-    print("✅ Data BTC berhasil disimpan ke Supabase:", response)
+    response = supabase.table("prices").update(record).eq("id", BTC_ID).execute()
+    print("✅ BTC price berhasil diupdate:", response)
 
 except Exception as e:
     print("❌ Error BTC:", e)
