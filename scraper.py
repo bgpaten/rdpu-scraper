@@ -1,41 +1,35 @@
 import requests
-from bs4 import BeautifulSoup
-import json
 from supabase import create_client, Client
 import os
+from datetime import datetime
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-URL = "https://bibit.id/reksadana/RD620/bri-seruni-pasar-uang-syariah"
+URL = "https://api.exchangerate.host/convert?access_key=d4fe6549a0d4c4c4a0e919dcd6698dd7&from=XAU&to=IDR&amount=1"
 
 try:
     res = requests.get(URL, timeout=10)
     res.raise_for_status()
-    soup = BeautifulSoup(res.text, "html.parser")
+    data = res.json()
 
-    script_tag = soup.find("script", id="__NEXT_DATA__", type="application/json")
-    data = json.loads(script_tag.string)
+    if "result" not in data or data["result"] is None:
+        raise Exception(f"API Error: {data}")
 
-    productDetail = data.get("props", {}).get("pageProps", {}).get("productDetail", {})
-    nav = productDetail.get("nav", {})
-    aum = productDetail.get("aum", {})
+    xau_to_idr = data["result"]  # harga 1 XAU dalam Rupiah
+    gram_per_xau = 31.1034768
+    price_per_gram = xau_to_idr / gram_per_xau
 
-    if nav and aum:
-        nav_value = nav.get("value")
-        nav_date = nav.get("date")
-        aum_value = aum.get("value")
+    record = {
+        "asset_id": 4,  # id aset Gold di tabel assets
+        "price": round(price_per_gram, 2),
+        "price_time": datetime.utcnow().isoformat(),  # waktu harga
+    }
 
-        response = (
-            supabase.table("rdpu_prices")
-            .insert({"date": nav_date, "nav_value": nav_value, "aum_value": aum_value})
-            .execute()
-        )
+    response = supabase.table("prices").insert(record).execute()
 
-        print("✅ Data berhasil disimpan ke Supabase:", response)
-    else:
-        print("⚠️ NAV atau AUM tidak ditemukan")
+    print("✅ Data berhasil disimpan ke Supabase:", response)
 
 except Exception as e:
     print("❌ Error:", e)
