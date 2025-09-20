@@ -2,7 +2,7 @@ name: Scrape RDPU Price
 
 on:
   schedule:
-    - cron: "0 */3 * * *" # jalan setiap 3 jam sekali
+    - cron: "0 0 * * *" # jalan sekali sehari (jam 07:00 WIB)
   workflow_dispatch: # bisa jalan manual juga
 
 jobs:
