@@ -1,27 +1,56 @@
+# .github/workflows/scrape-prices.yml
 name: Scrape Gold + BTC Price
 
 on:
   schedule:
-    - cron: "0 0 * * *" # setiap hari jam 07:00 WIB
+    - cron: "0 0 * * *" # setiap hari jam 07:00 WIB (00:00 UTC)
   workflow_dispatch: # bisa jalan manual juga
 
 jobs:
   scrape:
     runs-on: ubuntu-latest
+    
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
-
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Run scraper
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-        run: python scraper.py
+    - name: Checkout repo
+      uses: actions/checkout@v3
+    
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: pip install -r requirements.txt
+    
+    - name: Set up Chrome and ChromeDriver
+      uses: browser-actions/setup-chrome@v1
+      with:
+        chrome-version: stable
+    
+    - name: Install ChromeDriver
+      uses: nanasess/setup-chromedriver@v2
+    
+    - name: Run daily scraper
+      env:
+        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        PYTHONUNBUFFERED: 1
+      run: python scraper.py
+    
+    - name: Upload debug files on failure
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: daily-scraper-debug-${{ github.run_number }}
+        path: |
+          *.html
+          *.log
+        retention-days: 3
