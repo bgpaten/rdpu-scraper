@@ -1,37 +1,59 @@
+import re
 import requests
 from supabase import create_client, Client
 import os
 from datetime import datetime
+from bs4 import BeautifulSoup
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # GOLD
-PRICE_ID_GOLD = 1  # id row di tabel prices
-ASSET_ID_GOLD = 4  # id Gold di tabel assets
-URL = "https://api.exchangerate.host/convert?access_key=d4fe6549a0d4c4c4a0e919dcd6698dd7&from=XAU&to=IDR&amount=1"
+PRICE_ID_GOLD = 1
+ASSET_ID_GOLD = 4
+URL = "https://pluang.com/asset/gold"
+
+
+def extract_price(text):
+    """Ekstrak harga dari teks seperti 'Rp2.079.258/g'"""
+    match = re.search(r"Rp\s?([\d\.]+)", text)
+    if not match:
+        return None
+    return float(match.group(1).replace(".", ""))
+
 
 try:
     res = requests.get(URL, timeout=10)
     res.raise_for_status()
-    data = res.json()
+    soup = BeautifulSoup(res.text, "html.parser")
 
-    if "result" not in data or data["result"] is None:
-        raise Exception(f"API Error: {data}")
+    price_value = None
 
-    xau_to_idr = data["result"]
-    gram_per_xau = 31.1034768
-    price_per_gram = xau_to_idr / gram_per_xau
+    # 1️⃣ Coba cari langsung <h5> yang biasa dipakai
+    h5s = soup.find_all("h5")
+    for h5 in h5s:
+        price_value = extract_price(h5.get_text(strip=True))
+        if price_value:
+            break
 
+    # 2️⃣ Kalau gagal, coba cari semua elemen yang mengandung "Rp" + "/g"
+    if not price_value:
+        all_text = soup.get_text()
+        price_value = extract_price(all_text)
+
+    if not price_value:
+        raise Exception("Harga emas tidak ditemukan di halaman Pluang")
+
+    # Buat record untuk Supabase
     record = {
         "asset_id": ASSET_ID_GOLD,
-        "price": round(price_per_gram, 2),
+        "price": round(price_value, 2),
         "price_time": datetime.utcnow().isoformat(),
     }
 
     response = supabase.table("prices").update(record).eq("id", PRICE_ID_GOLD).execute()
-    print("✅ Gold price berhasil diupdate:", response)
+    print("✅ Gold price berhasil diupdate:", record)
 
 except Exception as e:
     print("❌ Error Gold:", e)
