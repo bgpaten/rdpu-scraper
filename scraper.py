@@ -15,7 +15,7 @@ try:
     SELENIUM_AVAILABLE = True
 except ImportError:
     SELENIUM_AVAILABLE = False
-    print("⚠️ Selenium not available, gold scraper may fail")
+    print("⚠️ Selenium not available, fallback disabled for gold")
 
 # --- Supabase setup ---
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -30,7 +30,9 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # --- Constants ---
+PRICE_ID_GOLD = 1  # id row untuk emas
 ASSET_ID_GOLD = 4
+PRICE_ID_BTC = 3  # id row untuk BTC
 ASSET_ID_BTC = 5
 
 URL_GOLD = "https://pluang.com/asset/gold"
@@ -92,19 +94,19 @@ def scrape_gold_price():
 
         driver = setup_driver()
         driver.get(URL_GOLD)
-        time.sleep(5)  # tunggu render
+        time.sleep(6)  # tunggu render
 
-        # Cari <h5> yang ada Rp
-        elements = driver.find_elements(By.XPATH, "//h5[contains(text(),'Rp')]")
+        # Cari elemen <h5> yang ada Rp
+        elements = driver.find_elements(By.XPATH, "//h5")
         for el in elements:
             text = el.text.strip()
-            if "/g" in text or "Rp" in text:
+            if "Rp" in text:
                 price = extract_price(text)
                 if price:
                     print(f"💰 Gold price found: Rp{price:,.0f}/g ({text})")
                     return price
 
-        # fallback: scan semua Rp
+        # fallback cari semua elemen dengan Rp
         all_elements = driver.find_elements(By.XPATH, "//*[contains(text(),'Rp')]")
         for el in all_elements:
             text = el.text.strip()
@@ -121,10 +123,7 @@ def scrape_gold_price():
         return None
     finally:
         if driver:
-            try:
-                driver.quit()
-            except:
-                pass
+            driver.quit()
 
 
 def update_gold_price():
@@ -137,15 +136,13 @@ def update_gold_price():
         raise Exception("❌ Harga emas gagal diambil")
 
     record = {
+        "id": PRICE_ID_GOLD,  # pakai id tabel
         "asset_id": ASSET_ID_GOLD,
         "price": round(price_value, 2),
         "price_time": datetime.utcnow().isoformat(),
     }
 
-    # pakai upsert agar update kalau ada, insert kalau belum ada
-    response = (
-        supabase.table("prices").upsert(record, on_conflict=["asset_id"]).execute()
-    )
+    response = supabase.table("prices").upsert(record, on_conflict=["id"]).execute()
     if response.data:
         print(f"✅ Gold price upserted: Rp{price_value:,.0f}")
     else:
@@ -167,14 +164,13 @@ def update_btc_price():
         btc_to_idr = data["bitcoin"]["idr"]
 
         record = {
+            "id": PRICE_ID_BTC,  # pakai id tabel
             "asset_id": ASSET_ID_BTC,
             "price": btc_to_idr,
             "price_time": datetime.utcnow().isoformat(),
         }
 
-        response = (
-            supabase.table("prices").upsert(record, on_conflict=["asset_id"]).execute()
-        )
+        response = supabase.table("prices").upsert(record, on_conflict=["id"]).execute()
         if response.data:
             print(f"✅ BTC price upserted: Rp{btc_to_idr:,.0f}")
         else:
