@@ -3,11 +3,10 @@ import requests
 from supabase import create_client, Client
 import os
 from datetime import datetime
-from bs4 import BeautifulSoup
 import sys
 import time
 
-# Selenium imports (untuk emas)
+# --- Selenium untuk emas ---
 try:
     from selenium import webdriver
     from selenium.webdriver.common.by import By
@@ -16,7 +15,7 @@ try:
     SELENIUM_AVAILABLE = True
 except ImportError:
     SELENIUM_AVAILABLE = False
-    print("⚠️ Selenium not available, fallback disabled for gold")
+    print("⚠️ Selenium not available, gold scraper may fail")
 
 # --- Supabase setup ---
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -31,9 +30,7 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # --- Constants ---
-PRICE_ID_GOLD = 1
 ASSET_ID_GOLD = 4
-PRICE_ID_BTC = 3
 ASSET_ID_BTC = 5
 
 URL_GOLD = "https://pluang.com/asset/gold"
@@ -55,7 +52,7 @@ def extract_price(text: str):
         clean_number = match.group(1).replace(".", "")
         try:
             price = float(clean_number)
-            if 500000 <= price <= 10000000:  # range valid harga emas
+            if 500000 <= price <= 10000000:  # range masuk akal
                 return price
         except ValueError:
             return None
@@ -87,7 +84,7 @@ def setup_driver():
 # GOLD SCRAPER
 # -------------------------------
 def scrape_gold_price():
-    """Scraping harga emas utama dari Pluang (versi akurat)"""
+    """Scraping harga emas utama dari Pluang"""
     driver = None
     try:
         if not SELENIUM_AVAILABLE:
@@ -97,7 +94,7 @@ def scrape_gold_price():
         driver.get(URL_GOLD)
         time.sleep(5)  # tunggu render
 
-        # Cari elemen <h5> dengan Rp
+        # Cari <h5> yang ada Rp
         elements = driver.find_elements(By.XPATH, "//h5[contains(text(),'Rp')]")
         for el in elements:
             text = el.text.strip()
@@ -107,7 +104,7 @@ def scrape_gold_price():
                     print(f"💰 Gold price found: Rp{price:,.0f}/g ({text})")
                     return price
 
-        # fallback scan semua Rp
+        # fallback: scan semua Rp
         all_elements = driver.find_elements(By.XPATH, "//*[contains(text(),'Rp')]")
         for el in all_elements:
             text = el.text.strip()
@@ -136,7 +133,6 @@ def update_gold_price():
     print("=" * 50)
 
     price_value = scrape_gold_price()
-
     if not price_value:
         raise Exception("❌ Harga emas gagal diambil")
 
@@ -146,11 +142,14 @@ def update_gold_price():
         "price_time": datetime.utcnow().isoformat(),
     }
 
-    response = supabase.table("prices").update(record).eq("id", PRICE_ID_GOLD).execute()
+    # pakai upsert agar update kalau ada, insert kalau belum ada
+    response = (
+        supabase.table("prices").upsert(record, on_conflict=["asset_id"]).execute()
+    )
     if response.data:
-        print(f"✅ Gold price updated: Rp{price_value:,.0f}")
+        print(f"✅ Gold price upserted: Rp{price_value:,.0f}")
     else:
-        raise Exception(f"❌ Failed to update Supabase gold: {response}")
+        raise Exception(f"❌ Failed to upsert gold: {response}")
 
 
 # -------------------------------
@@ -174,12 +173,12 @@ def update_btc_price():
         }
 
         response = (
-            supabase.table("prices").update(record).eq("id", PRICE_ID_BTC).execute()
+            supabase.table("prices").upsert(record, on_conflict=["asset_id"]).execute()
         )
         if response.data:
-            print(f"✅ BTC price updated: Rp{btc_to_idr:,.0f}")
+            print(f"✅ BTC price upserted: Rp{btc_to_idr:,.0f}")
         else:
-            raise Exception(f"❌ Failed to update Supabase BTC: {response}")
+            raise Exception(f"❌ Failed to upsert BTC: {response}")
 
     except Exception as e:
         print(f"❌ BTC update failed: {e}")
