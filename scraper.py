@@ -161,21 +161,40 @@ def update_gold_price():
 # -------------------------------
 def extract_xipi_price(text: str) -> float | None:
     """
-    Ekstrak angka XIPI dari teks seperti 'Rp221,00'.
-    Kita ambil bagian sebelum koma, buang semua non-digit.
+    Ekstrak harga XIPI dari teks seperti:
+    - 'Rp221,00'
+    - 'Rp221.00'
+    dan kembalikan sebagai 221.0
     """
     if not text:
         return None
 
-    # Ambil hanya bagian sebelum koma (format Indonesia pakai koma untuk desimal)
-    before_comma = text.split(",")[0]
-    # Buang semua karakter non-digit
-    digits = re.sub(r"\D", "", before_comma)
-    if not digits:
+    # Ambil hanya bagian setelah 'Rp'
+    text = text.replace("Rp", "").strip()
+
+    # Sisakan hanya angka, titik, koma
+    clean = re.sub(r"[^0-9\.,]", "", text)
+
+    if not clean:
         return None
 
+    # Normalisasi:
+    # - kalau ada koma -> anggap koma = desimal
+    # - buang pemisah ribuan
+    if "," in clean and "." in clean:
+        # contoh '1.234,56' -> '1234.56'
+        clean = clean.replace(".", "").replace(",", ".")
+    elif "," in clean:
+        # contoh '221,00' -> '221.00'
+        clean = clean.replace(".", "").replace(",", ".")
+    else:
+        # contoh '221.00' -> biarin
+        pass
+
     try:
-        return float(digits)
+        value = float(clean)
+        # Harga ETF di IDX biasanya integer, buletin aja
+        return round(value)
     except ValueError:
         return None
 
