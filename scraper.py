@@ -36,7 +36,7 @@ PRICE_ID_BTC = 3  # id row untuk BTC
 ASSET_ID_BTC = 5
 
 # 👉 ETF XIPI – SESUAIKAN DENGAN DB KAMU
-PRICE_ID_XIPI = 6
+PRICE_ID_XIPI = 4
 ASSET_ID_XIPI = 6
 
 URL_GOLD = "https://pluang.com/asset/gold"
