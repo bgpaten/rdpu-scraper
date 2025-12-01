@@ -43,7 +43,7 @@ URL_GOLD = "https://pluang.com/asset/gold"
 URL_BTC = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=idr"
 
 # Link Google Finance XIPI (sesuai yang kamu kasih)
-URL_XIPI = "https://www.google.com/finance/quote/XIPI:IDX?sa=X&ved=2ahUKEwiaz7Le44mRAxXExTgGHb2VLPYQ3ecFegQIIxAb"
+URL_XIPI = "https://www.google.com/finance/quote/XIJI:IDX?sa=X&ved=2ahUKEwiXosCPtJuRAxVIzzgGHUA8InIQ3ecFegQIGxAb"
 
 
 # -------------------------------
