@@ -35,15 +35,22 @@ ASSET_ID_GOLD = 4
 PRICE_ID_BTC = 3  # id row untuk BTC
 ASSET_ID_BTC = 5
 
-# 👉 ETF XIPI – SESUAIKAN DENGAN DB KAMU
-PRICE_ID_XIPI = 4
-ASSET_ID_XIPI = 6
+# 👉 BBRI – SESUAIKAN DENGAN DB KAMU
+PRICE_ID_BBRI = 4
+ASSET_ID_BBRI = 7
+
+# 👉 ETF XIPI – SESUAIKAN DENGAN DB KAMU (DI-COMMENT)
+# PRICE_ID_XIPI = 4
+# ASSET_ID_XIPI = 6
 
 URL_GOLD = "https://pluang.com/asset/gold"
 URL_BTC = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=idr"
 
 # Link Google Finance XIPI (sesuai yang kamu kasih)
-URL_XIPI = "https://www.google.com/finance/quote/XIJI:IDX?sa=X&ved=2ahUKEwiXosCPtJuRAxVIzzgGHUA8InIQ3ecFegQIGxAb"
+# URL_XIPI = "https://www.google.com/finance/quote/XIJI:IDX?sa=X&ved=2ahUKEwiXosCPtJuRAxVIzzgGHUA8InIQ3ecFegQIGxAb"
+
+# Link Ajaib BBRI
+URL_BBRI = "https://ajaib.co.id/saham/aset/BBRI"
 
 
 # -------------------------------
@@ -156,112 +163,190 @@ def update_gold_price():
         raise Exception(f"❌ Failed to upsert gold: {response}")
 
 
+# # -------------------------------
+# # XIPI ETF SCRAPER (GOOGLE FINANCE) - COMMENTED
+# # -------------------------------
+# def extract_xipi_price(text: str) -> float | None:
+#     """
+#     Ekstrak harga XIPI dari teks seperti:
+#     - 'Rp221,00'
+#     - 'Rp221.00'
+#     dan kembalikan sebagai 221.0
+#     """
+#     if not text:
+#         return None
+#
+#     # Ambil hanya bagian setelah 'Rp'
+#     text = text.replace("Rp", "").strip()
+#
+#     # Sisakan hanya angka, titik, koma
+#     clean = re.sub(r"[^0-9\.,]", "", text)
+#
+#     if not clean:
+#         return None
+#
+#     # Normalisasi:
+#     # - kalau ada koma -> anggap koma = desimal
+#     # - buang pemisah ribuan
+#     if "," in clean and "." in clean:
+#         # contoh '1.234,56' -> '1234.56'
+#         clean = clean.replace(".", "").replace(",", ".")
+#     elif "," in clean:
+#         # contoh '221,00' -> '221.00'
+#         clean = clean.replace(".", "").replace(",", ".")
+#     else:
+#         # contoh '221.00' -> biarin
+#         pass
+#
+#     try:
+#         value = float(clean)
+#         # Harga ETF di IDX biasanya integer, buletin aja
+#         return round(value)
+#     except ValueError:
+#         return None
+#
+#
+# def scrape_xipi_price():
+#     """Scraping harga ETF XIPI dari Google Finance"""
+#     driver = None
+#     try:
+#         if not SELENIUM_AVAILABLE:
+#             raise Exception("Selenium not available")
+#
+#         driver = setup_driver()
+#         driver.get(URL_XIPI)
+#         time.sleep(6)  # tunggu chart & harga utama render
+#
+#         # Elemen harga utama biasanya: <div class="YMlKec fxKbKc">Rp221,00</div>
+#         elements = driver.find_elements(By.CSS_SELECTOR, "div.YMlKec.fxKbKc")
+#         for el in elements:
+#             text = el.text.strip()
+#             if text.startswith("Rp"):
+#                 price = extract_xipi_price(text)
+#                 if price is not None:
+#                     print(f"📈 XIPI price found: {text} -> {price}")
+#                     return price
+#
+#         # Fallback cari semua div yang mengandung Rp
+#         all_divs = driver.find_elements(
+#             By.XPATH, "//div[contains(@class,'YMlKec')][contains(.,'Rp')]"
+#         )
+#         for el in all_divs:
+#             text = el.text.strip()
+#             price = extract_xipi_price(text)
+#             if price is not None:
+#                 print(f"📈 XIPI price fallback: {text} -> {price}")
+#                 return price
+#
+#         return None
+#
+#     except Exception as e:
+#         print(f"❌ XIPI scraper error: {e}")
+#         return None
+#     finally:
+#         if driver:
+#             driver.quit()
+#
+#
+# def update_xipi_price():
+#     print("\n" + "=" * 50)
+#     print("📊 SCRAPING XIPI ETF PRICE")
+#     print("=" * 50)
+#
+#     price_value = scrape_xipi_price()
+#     if not price_value:
+#         raise Exception("❌ Harga XIPI gagal diambil")
+#
+#     record = {
+#         "id": PRICE_ID_XIPI,
+#         "asset_id": ASSET_ID_XIPI,
+#         "price": round(price_value, 2),
+#         "price_time": datetime.utcnow().isoformat(),
+#     }
+#
+#     response = supabase.table("prices").upsert(record, on_conflict=["id"]).execute()
+#     if response.data:
+#         print(f"✅ XIPI price upserted: Rp{price_value:,.0f}")
+#     else:
+#         raise Exception(f"❌ Failed to upsert XIPI: {response}")
+
+
 # -------------------------------
-# XIPI ETF SCRAPER (GOOGLE FINANCE)
+# BBRI STOCK SCRAPER (AJAIB)
 # -------------------------------
-def extract_xipi_price(text: str) -> float | None:
+def extract_bbri_price(text: str) -> float | None:
     """
-    Ekstrak harga XIPI dari teks seperti:
-    - 'Rp221,00'
-    - 'Rp221.00'
-    dan kembalikan sebagai 221.0
+    Ekstrak harga BBRI dari teks seperti:
+    - '3,780'
+    dan kembalikan sebagai 3780.0
     """
     if not text:
         return None
 
-    # Ambil hanya bagian setelah 'Rp'
-    text = text.replace("Rp", "").strip()
-
-    # Sisakan hanya angka, titik, koma
+    # Bersihkan dari semua kecuali angka, titik, dan koma
     clean = re.sub(r"[^0-9\.,]", "", text)
 
-    if not clean:
-        return None
-
-    # Normalisasi:
-    # - kalau ada koma -> anggap koma = desimal
-    # - buang pemisah ribuan
-    if "," in clean and "." in clean:
-        # contoh '1.234,56' -> '1234.56'
-        clean = clean.replace(".", "").replace(",", ".")
-    elif "," in clean:
-        # contoh '221,00' -> '221.00'
-        clean = clean.replace(".", "").replace(",", ".")
-    else:
-        # contoh '221.00' -> biarin
-        pass
+    # Pada Ajaib, format saham biasanya ribuan pakai koma (3,780)
+    # Kita buang koma untuk jadi angka bersih
+    clean = clean.replace(",", "")
 
     try:
-        value = float(clean)
-        # Harga ETF di IDX biasanya integer, buletin aja
-        return round(value)
+        return float(clean)
     except ValueError:
         return None
 
 
-def scrape_xipi_price():
-    """Scraping harga ETF XIPI dari Google Finance"""
+def scrape_bbri_price():
+    """Scraping harga saham BBRI dari Ajaib"""
     driver = None
     try:
         if not SELENIUM_AVAILABLE:
             raise Exception("Selenium not available")
 
         driver = setup_driver()
-        driver.get(URL_XIPI)
-        time.sleep(6)  # tunggu chart & harga utama render
+        driver.get(URL_BBRI)
+        time.sleep(6)  # tunggu render
 
-        # Elemen harga utama biasanya: <div class="YMlKec fxKbKc">Rp221,00</div>
-        elements = driver.find_elements(By.CSS_SELECTOR, "div.YMlKec.fxKbKc")
-        for el in elements:
-            text = el.text.strip()
-            if text.startswith("Rp"):
-                price = extract_xipi_price(text)
-                if price is not None:
-                    print(f"📈 XIPI price found: {text} -> {price}")
-                    return price
-
-        # Fallback cari semua div yang mengandung Rp
-        all_divs = driver.find_elements(
-            By.XPATH, "//div[contains(@class,'YMlKec')][contains(.,'Rp')]"
-        )
-        for el in all_divs:
-            text = el.text.strip()
-            price = extract_xipi_price(text)
+        # Sesuai hasil inspect: <span class="font-semibold mr-3 text-2xl">3,780</span>
+        element = driver.find_element(By.CSS_SELECTOR, "span.font-semibold.mr-3.text-2xl")
+        if element:
+            text = element.text.strip()
+            price = extract_bbri_price(text)
             if price is not None:
-                print(f"📈 XIPI price fallback: {text} -> {price}")
+                print(f"📈 BBRI price found: {text} -> {price}")
                 return price
 
         return None
 
     except Exception as e:
-        print(f"❌ XIPI scraper error: {e}")
+        print(f"❌ BBRI scraper error: {e}")
         return None
     finally:
         if driver:
             driver.quit()
 
 
-def update_xipi_price():
+def update_bbri_price():
     print("\n" + "=" * 50)
-    print("📊 SCRAPING XIPI ETF PRICE")
+    print("📈 SCRAPING BBRI STOCK PRICE")
     print("=" * 50)
 
-    price_value = scrape_xipi_price()
+    price_value = scrape_bbri_price()
     if not price_value:
-        raise Exception("❌ Harga XIPI gagal diambil")
+        raise Exception("❌ Harga BBRI gagal diambil")
 
     record = {
-        "id": PRICE_ID_XIPI,
-        "asset_id": ASSET_ID_XIPI,
+        "id": PRICE_ID_BBRI,
+        "asset_id": ASSET_ID_BBRI,
         "price": round(price_value, 2),
         "price_time": datetime.utcnow().isoformat(),
     }
 
     response = supabase.table("prices").upsert(record, on_conflict=["id"]).execute()
     if response.data:
-        print(f"✅ XIPI price upserted: Rp{price_value:,.0f}")
+        print(f"✅ BBRI price upserted: Rp{price_value:,.0f}")
     else:
-        raise Exception(f"❌ Failed to upsert XIPI: {response}")
+        raise Exception(f"❌ Failed to upsert BBRI: {response}")
 
 
 # -------------------------------
@@ -312,10 +397,10 @@ def main():
         print(f"❌ Gold update failed: {e}")
 
     try:
-        update_xipi_price()
+        update_bbri_price()
         success += 1
     except Exception as e:
-        print(f"❌ XIPI update failed: {e}")
+        print(f"❌ BBRI update failed: {e}")
 
     try:
         update_btc_price()
