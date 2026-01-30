@@ -35,9 +35,9 @@ ASSET_ID_GOLD = 4
 PRICE_ID_BTC = 3  # id row untuk BTC
 ASSET_ID_BTC = 5
 
-# 👉 BBRI – SESUAIKAN DENGAN DB KAMU
-PRICE_ID_BBRI = 4
-ASSET_ID_BBRI = 7
+# 👉 BMRI – SESUAIKAN DENGAN DB KAMU
+PRICE_ID_BMRI = 4
+ASSET_ID_BMRI = 7
 
 # 👉 ETF XIPI – SESUAIKAN DENGAN DB KAMU (DI-COMMENT)
 # PRICE_ID_XIPI = 4
@@ -49,8 +49,8 @@ URL_BTC = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currenci
 # Link Google Finance XIPI (sesuai yang kamu kasih)
 # URL_XIPI = "https://www.google.com/finance/quote/XIJI:IDX?sa=X&ved=2ahUKEwiXosCPtJuRAxVIzzgGHUA8InIQ3ecFegQIGxAb"
 
-# Link Ajaib BBRI
-URL_BBRI = "https://ajaib.co.id/saham/aset/BBRI"
+# Link Ajaib BMRI
+URL_BMRI = "https://ajaib.co.id/saham/aset/BMRI"
 
 
 # -------------------------------
@@ -272,13 +272,13 @@ def update_gold_price():
 
 
 # -------------------------------
-# BBRI STOCK SCRAPER (AJAIB)
+# BMRI STOCK SCRAPER (AJAIB)
 # -------------------------------
-def extract_bbri_price(text: str) -> float | None:
+def extract_bmri_price(text: str) -> float | None:
     """
-    Ekstrak harga BBRI dari teks seperti:
-    - '3,780'
-    dan kembalikan sebagai 3780.0
+    Ekstrak harga BMRI dari teks seperti:
+    - '4,770'
+    dan kembalikan sebagai 4770.0
     """
     if not text:
         return None
@@ -286,7 +286,7 @@ def extract_bbri_price(text: str) -> float | None:
     # Bersihkan dari semua kecuali angka, titik, dan koma
     clean = re.sub(r"[^0-9\.,]", "", text)
 
-    # Pada Ajaib, format saham biasanya ribuan pakai koma (3,780)
+    # Pada Ajaib, format saham biasanya ribuan pakai koma (4,770)
     # Kita buang koma untuk jadi angka bersih
     clean = clean.replace(",", "")
 
@@ -296,57 +296,57 @@ def extract_bbri_price(text: str) -> float | None:
         return None
 
 
-def scrape_bbri_price():
-    """Scraping harga saham BBRI dari Ajaib"""
+def scrape_bmri_price():
+    """Scraping harga saham BMRI dari Ajaib"""
     driver = None
     try:
         if not SELENIUM_AVAILABLE:
             raise Exception("Selenium not available")
 
         driver = setup_driver()
-        driver.get(URL_BBRI)
+        driver.get(URL_BMRI)
         time.sleep(6)  # tunggu render
 
-        # Sesuai hasil inspect: <span class="font-semibold mr-3 text-2xl">3,780</span>
+        # Sesuai hasil inspect: <span class="font-semibold mr-3 text-2xl">4,770</span>
         element = driver.find_element(By.CSS_SELECTOR, "span.font-semibold.mr-3.text-2xl")
         if element:
             text = element.text.strip()
-            price = extract_bbri_price(text)
+            price = extract_bmri_price(text)
             if price is not None:
-                print(f"📈 BBRI price found: {text} -> {price}")
+                print(f"📈 BMRI price found: {text} -> {price}")
                 return price
 
         return None
 
     except Exception as e:
-        print(f"❌ BBRI scraper error: {e}")
+        print(f"❌ BMRI scraper error: {e}")
         return None
     finally:
         if driver:
             driver.quit()
 
 
-def update_bbri_price():
+def update_bmri_price():
     print("\n" + "=" * 50)
-    print("📈 SCRAPING BBRI STOCK PRICE")
+    print("📈 SCRAPING BMRI STOCK PRICE")
     print("=" * 50)
 
-    price_value = scrape_bbri_price()
+    price_value = scrape_bmri_price()
     if not price_value:
-        raise Exception("❌ Harga BBRI gagal diambil")
+        raise Exception("❌ Harga BMRI gagal diambil")
 
     record = {
-        "id": PRICE_ID_BBRI,
-        "asset_id": ASSET_ID_BBRI,
+        "id": PRICE_ID_BMRI,
+        "asset_id": ASSET_ID_BMRI,
         "price": round(price_value, 2),
         "price_time": datetime.utcnow().isoformat(),
     }
 
     response = supabase.table("prices").upsert(record, on_conflict=["id"]).execute()
     if response.data:
-        print(f"✅ BBRI price upserted: Rp{price_value:,.0f}")
+        print(f"✅ BMRI price upserted: Rp{price_value:,.0f}")
     else:
-        raise Exception(f"❌ Failed to upsert BBRI: {response}")
+        raise Exception(f"❌ Failed to upsert BMRI: {response}")
 
 
 # -------------------------------
@@ -397,10 +397,10 @@ def main():
         print(f"❌ Gold update failed: {e}")
 
     try:
-        update_bbri_price()
+        update_bmri_price()
         success += 1
     except Exception as e:
-        print(f"❌ BBRI update failed: {e}")
+        print(f"❌ BMRI update failed: {e}")
 
     try:
         update_btc_price()
