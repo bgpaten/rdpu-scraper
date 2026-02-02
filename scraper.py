@@ -108,26 +108,41 @@ def scrape_gold_price():
 
         driver = setup_driver()
         driver.get(URL_GOLD)
-        time.sleep(6)  # tunggu render
+        
+        # Tunggu render dengan lebih sabar
+        time.sleep(8)
 
-        # Cari elemen <h5> yang ada Rp
+        # 1. Coba selector spesifik yang ditemukan dari inspect/debug
+        try:
+            elements = driver.find_elements(By.CSS_SELECTOR, ".AssetPriceGraph_price-text__28CyY")
+            for el in elements:
+                text = el.text.strip()
+                if "Rp" in text:
+                    price = extract_price(text)
+                    if price:
+                        print(f"💰 Gold price found (selector): Rp{price:,.0f}/g ({text})")
+                        return price
+        except Exception:
+            pass
+
+        # 2. Fallback: Cari elemen <h5> yang ada Rp (logika lama)
         elements = driver.find_elements(By.XPATH, "//h5")
         for el in elements:
             text = el.text.strip()
             if "Rp" in text:
                 price = extract_price(text)
                 if price:
-                    print(f"💰 Gold price found: Rp{price:,.0f}/g ({text})")
+                    print(f"💰 Gold price found (h5): Rp{price:,.0f}/g ({text})")
                     return price
 
-        # fallback cari semua elemen dengan Rp
+        # 3. Fallback: cari semua elemen dengan Rp dan /g
         all_elements = driver.find_elements(By.XPATH, "//*[contains(text(),'Rp')]")
         for el in all_elements:
             text = el.text.strip()
             if "/g" in text:
                 price = extract_price(text)
                 if price:
-                    print(f"💰 Gold price fallback: Rp{price:,.0f}/g ({text})")
+                    print(f"💰 Gold price fallback (/g): Rp{price:,.0f}/g ({text})")
                     return price
 
         return None
