@@ -2,7 +2,8 @@ name: Scrape Gold + BTC Price
 
 on:
   schedule:
-    - cron: "*/5 * * * *" # setiap 3 jam sekali
+    - cron: "*/5 * * * *"
+    - cron: "2-59/5 * * * *"
   workflow_dispatch: # bisa jalan manual juga
 
 jobs:
