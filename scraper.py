@@ -39,6 +39,10 @@ ASSET_ID_BTC = 5
 PRICE_ID_BMRI = 4
 ASSET_ID_BMRI = 8
 
+# 👉 MDKA – SESUAIKAN DENGAN DB KAMU
+PRICE_ID_MDKA = 5 
+ASSET_ID_MDKA = 9  
+
 # 👉 ETF XIPI – SESUAIKAN DENGAN DB KAMU (DI-COMMENT)
 # PRICE_ID_XIPI = 4
 # ASSET_ID_XIPI = 6
@@ -51,6 +55,9 @@ URL_BTC = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currenci
 
 # Link Ajaib BMRI
 URL_BMRI = "https://ajaib.co.id/saham/aset/BMRI"
+
+# Link Ajaib MDKA
+URL_MDKA = "https://ajaib.co.id/saham/aset/MDKA"
 
 
 # -------------------------------
@@ -365,6 +372,84 @@ def update_bmri_price():
 
 
 # -------------------------------
+# MDKA STOCK SCRAPER (AJAIB)
+# -------------------------------
+def extract_mdka_price(text: str) -> float | None:
+    """
+    Ekstrak harga MDKA dari teks seperti:
+    - '2,500'
+    dan kembalikan sebagai 2500.0
+    """
+    if not text:
+        return None
+
+    # Bersihkan dari semua kecuali angka, titik, dan koma
+    clean = re.sub(r"[^0-9\.,]", "", text)
+
+    # Pada Ajaib, format saham biasanya ribuan pakai koma (4,770)
+    # Kita buang koma untuk jadi angka bersih
+    clean = clean.replace(",", "")
+
+    try:
+        return float(clean)
+    except ValueError:
+        return None
+
+
+def scrape_mdka_price():
+    """Scraping harga saham MDKA dari Ajaib"""
+    driver = None
+    try:
+        if not SELENIUM_AVAILABLE:
+            raise Exception("Selenium not available")
+
+        driver = setup_driver()
+        driver.get(URL_MDKA)
+        time.sleep(6)  # tunggu render
+
+        # Sesuai hasil inspect: <span class="font-semibold mr-3 text-2xl">...</span>
+        element = driver.find_element(By.CSS_SELECTOR, "span.font-semibold.mr-3.text-2xl")
+        if element:
+            text = element.text.strip()
+            price = extract_mdka_price(text)
+            if price is not None:
+                print(f"📈 MDKA price found: {text} -> {price}")
+                return price
+
+        return None
+
+    except Exception as e:
+        print(f"❌ MDKA scraper error: {e}")
+        return None
+    finally:
+        if driver:
+            driver.quit()
+
+
+def update_mdka_price():
+    print("\n" + "=" * 50)
+    print("📈 SCRAPING MDKA STOCK PRICE")
+    print("=" * 50)
+
+    price_value = scrape_mdka_price()
+    if not price_value:
+        raise Exception("❌ Harga MDKA gagal diambil")
+
+    record = {
+        "id": PRICE_ID_MDKA,
+        "asset_id": ASSET_ID_MDKA,
+        "price": round(price_value, 2),
+        "price_time": datetime.utcnow().isoformat(),
+    }
+
+    response = supabase.table("prices").upsert(record, on_conflict=["id"]).execute()
+    if response.data:
+        print(f"✅ MDKA price upserted: Rp{price_value:,.0f}")
+    else:
+        raise Exception(f"❌ Failed to upsert MDKA: {response}")
+
+
+# -------------------------------
 # BTC SCRAPER
 # -------------------------------
 def update_btc_price():
@@ -418,12 +503,18 @@ def main():
         print(f"❌ BMRI update failed: {e}")
 
     try:
+        update_mdka_price()
+        success += 1
+    except Exception as e:
+        print(f"❌ MDKA update failed: {e}")
+
+    try:
         update_btc_price()
         success += 1
     except Exception as e:
         print(f"❌ BTC update failed: {e}")
 
-    print(f"\n📊 Summary: {success}/3 updates succeeded")
+    print(f"\n📊 Summary: {success}/4 updates succeeded")
     if success == 0:
         sys.exit(1)
 
