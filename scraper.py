@@ -7,6 +7,8 @@ import sys
 import time
 
 # --- Selenium untuk emas & XIPI ---
+# 1
+
 try:
     from selenium import webdriver
     from selenium.webdriver.common.by import By
